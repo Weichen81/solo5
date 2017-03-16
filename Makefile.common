@@ -37,9 +37,9 @@ ARCH = arm64
 endif
 
 # Exported to OPAM via pkg-config.
-MD_CFLAGS=$(HOST_CFLAGS) -ffreestanding -mno-red-zone
+MD_CFLAGS=$(HOST_CFLAGS) -ffreestanding
 ifeq ($(ARCH), x86_64)
-MD_CFLAGS += -DCONFIG_X86_64
+MD_CFLAGS += -mno-red-zone -DCONFIG_X86_64
 endif
 
 ifeq ($(ARCH), arm64)
