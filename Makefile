@@ -21,10 +21,16 @@ $(TOP)/Makeconf:
 	./configure.sh
 include Makefile.common
 
+ifeq ($(ARCH), x86_64)
+BACKENDS = ukvm virtio
+else
+BACKENDS = ukvm
+endif
+
 .PHONY: all
-all: ukvm virtio
+all: $(BACKENDS)
 .DEFAULT_GOAL := all
-.NOTPARALLEL: ukvm virtio
+.NOTPARALLEL: $(BACKENDS)
 
 .PHONY: virtio
 virtio:
