@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2015-2017 Contributors as noted in the AUTHORS file
  *
  * This file is part of Solo5, a unikernel base layer.
@@ -46,6 +46,8 @@
  */
 
 #include "kernel.h"
+
+#if defined(CONFIG_X86_64)
 
 /* Wall time offset at monotonic time base. */
 static uint64_t wc_epochoffset;
@@ -178,3 +180,19 @@ int pvclock_init(void) {
 uint64_t pvclock_epochoffset(void) {
 	return wc_epochoffset;
 }
+
+#elif defined(CONFIG_ARM64)
+
+int pvclock_init(void) {
+    return 0;
+}
+
+uint64_t pvclock_monotonic(void) {
+    return 0;
+}
+
+uint64_t pvclock_epochoffset(void) {
+	return 0;
+}
+
+#endif
