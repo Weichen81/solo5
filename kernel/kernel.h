@@ -243,7 +243,17 @@ static inline uint64_t inq(uint16_t port)
 	__asm__ __volatile__("ldr %0, [%1]" : "=r" (v) : "r" (port));
 	return v;
 }
-#endif /**/
+
+static inline uint64_t mul64_32(uint64_t a, uint32_t b)
+{
+    uint64_t prod;
+
+    __asm__ __volatile__("mul %0, %1, %2" : "=r" (prod) : "r" (a), "r" (b));
+
+    return prod;
+}
+
+#endif
 
 /* compiler-only memory "barrier" */
 #define cc_barrier() __asm__ __volatile__("" : : : "memory")
