@@ -31,6 +31,11 @@ include $(TOP)/Makeconf
 # ARCH through 'uname -m'.
 ARCH ?= $(shell uname -m)
 
+# Unify the 64-bit ARM architecture to arm64
+ifeq ($(ARCH), aarch64)
+ARCH = arm64
+endif
+
 # Exported to OPAM via pkg-config.
 MD_CFLAGS=$(HOST_CFLAGS) -ffreestanding -mno-red-zone
 # Likewise.
