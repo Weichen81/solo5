@@ -38,6 +38,14 @@ endif
 
 # Exported to OPAM via pkg-config.
 MD_CFLAGS=$(HOST_CFLAGS) -ffreestanding -mno-red-zone
+ifeq ($(ARCH), x86_64)
+MD_CFLAGS += -DCONFIG_X86_64
+endif
+
+ifeq ($(ARCH), arm64)
+MD_CFLAGS += -DCONFIG_ARM64
+endif
+
 # Likewise.
 LDFLAGS=-nostdlib -z max-page-size=0x1000 -static
 # CFLAGS used for building kernel/ and in-tree tests.
