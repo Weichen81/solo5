@@ -20,10 +20,10 @@ include $(TOP)/Makefile.common
 
 COMMON_COBJS=\
 abort.o \
-cpu.o \
-cpu_vectors.o \
+cpu_${ARCH}.o \
+cpu_vectors_${ARCH}.o \
 ee_printf.o \
-intr.o \
+intr_${ARCH}.o \
 lib.o \
 malloc.o \
 exit.o \
