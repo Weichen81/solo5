@@ -140,6 +140,7 @@ uint64_t pvclock_epochoffset(void);
 
 /* accessing devices via port space */
 
+#if defined(CONFIG_X86_64)
 static inline void outb(uint16_t port, uint8_t v)
 {
     __asm__ __volatile__("outb %0,%1" : : "a" (v), "dN" (port));
@@ -198,6 +199,51 @@ static inline uint64_t mul64_32(uint64_t a, uint32_t b)
 
     return prod;
 }
+
+#elif defined(CONFIG_ARM64)
+
+static inline void outb(uint16_t port, uint8_t v)
+{
+	__asm__ __volatile__("strb %w0, [%1]" : : "rZ" (v), "r" (port));
+}
+static inline void outw(uint16_t port, uint16_t v)
+{
+	__asm__ __volatile__("strh %w0, [%1]" : : "rZ" (v), "r" (port));
+}
+static inline void outl(uint16_t port, uint32_t v)
+{
+	__asm__ __volatile__("str %w0, [%1]" : : "rZ" (v), "r" (port));
+}
+static inline uint8_t inb(uint16_t port)
+{
+	uint8_t v;
+
+	__asm__ __volatile__("ldrb %w0, [%1]" : "=r" (v) : "r" (port));
+	return v;
+}
+static inline uint16_t inw(uint16_t port)
+{
+	uint16_t v;
+
+	__asm__ __volatile__("ldrh %w0, [%1]" : "=r" (v) : "r" (port));
+	return v;
+}
+static inline uint32_t inl(uint16_t port)
+{
+	uint32_t v;
+
+	__asm__ __volatile__("ldr %w0, [%1]" : "=r" (v) : "r" (port));
+	return v;
+}
+
+static inline uint64_t inq(uint16_t port)
+{
+	uint64_t v;
+
+	__asm__ __volatile__("ldr %0, [%1]" : "=r" (v) : "r" (port));
+	return v;
+}
+#endif /**/
 
 /* compiler-only memory "barrier" */
 #define cc_barrier() __asm__ __volatile__("" : : : "memory")
