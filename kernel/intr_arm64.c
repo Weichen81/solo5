@@ -19,6 +19,7 @@
  */
 
 #include "kernel.h"
+#include "queue.h"
 
 static void vector_table_init(void)
 {
@@ -44,4 +45,65 @@ void intr_init(void)
 {
     vector_table_init();
     platform_intr_init();
+}
+
+struct irq_handler {
+    int (*handler)(void *);
+    void *arg;
+
+    SLIST_ENTRY(irq_handler) entries;
+};
+
+SLIST_HEAD(irq_handler_head, irq_handler);
+static struct irq_handler_head irq_handlers[16];
+
+void intr_register_irq(unsigned irq, int (*handler)(void *), void *arg)
+{
+    assert (irq < 16);
+    struct irq_handler *h = malloc(sizeof (struct irq_handler));
+    assert(h != NULL);
+    h->handler = handler;
+    h->arg = arg;
+
+    intr_disable();
+    SLIST_INSERT_HEAD(&irq_handlers[irq], h, entries);
+    intr_enable();
+    platform_intr_clear_irq(irq);
+}
+
+void irq_handler(uint64_t irq)
+{
+    struct irq_handler *h;
+    int handled = 0;
+
+    SLIST_FOREACH(h, &irq_handlers[irq], entries) {
+        if (h->handler(h->arg) == 1) {
+            handled = 1;
+            break;
+        }
+    }
+
+    if (!handled)
+        printf("Solo5: unhandled irq %d\n", irq);
+    else
+        /* Only ACK the IRQ if handled; we only need to know about an unhandled
+         * IRQ the first time round. */
+        platform_intr_ack_irq(irq);
+}
+
+/* keeps track of how many stacked "interrupts_disable"'s there are */
+int intr_depth = 1;
+
+void intr_disable(void)
+{
+    __asm__ __volatile__("msr daifset, #2");
+    intr_depth++;
+}
+
+void intr_enable(void)
+{
+    assert(intr_depth > 0);
+
+    if (--intr_depth == 0)
+        __asm__ __volatile__("msr daifclr, #2");
 }
