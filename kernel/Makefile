@@ -31,13 +31,16 @@ pvclock.o
 
 UKVM_COBJS=\
 ukvm/kernel.o \
-ukvm/gdt.o \
 ukvm/io.o \
 ukvm/platform.o \
 ukvm/platform_intr.o \
 ukvm/mem.o \
 ukvm/time.o \
 $(COMMON_COBJS)
+
+ifeq ($(ARCH), x86_64)
+UKVM_COBJS+=ukvm/gdt.o
+endif
 
 VIRTIO_COBJS=\
 virtio/boot.o \

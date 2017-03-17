@@ -29,7 +29,9 @@ void _start(struct ukvm_boot_info *bi)
     printf("\\__ \\ (   | | (   |  ) |\n");
     printf("____/\\___/ _|\\___/____/\n");
 
+#if defined(CONFIG_X86_64)
     gdt_init();
+#endif
     mem_init(bi->mem_size, bi->kernel_end);
     intr_init();
 
