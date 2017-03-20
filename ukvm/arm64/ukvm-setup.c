@@ -23,6 +23,7 @@
  *   lkvm: http://github.com/clearlinux/kvmtool
  */
 #define _GNU_SOURCE
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -112,6 +113,53 @@ static void setup_system_enable_float(int vcpufd)
     ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
     if (ret == -1)
          err(1, "KVM: Enable SIMD[:FPEN] failed");
+}
+
+/*
+ * Initialize registers: instruction pointer for our code, addends,
+ * and PSTATE flags required by ARM64 architecture.
+ * Arguments to the kernel main are passed using the ARM64 calling
+ * convention: x0 ~ x7
+ */
+void setup_vcpu_init_register(int vcpufd, uint64_t reset_entry)
+{
+    int ret;
+    uint64_t data;
+    struct kvm_one_reg reg = {
+        .addr = (uint64_t)&data,
+    };
+
+    /* Setup PSTATE: Mask Debug, Abort, IRQ and FIQ. Switch to EL1h mode */
+    data = PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL1h;
+    reg.id = ARM64_CORE_REG(regs.pstate);
+    ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM_SET_ONE_REG failed (spsr[EL1])");
+
+    /*
+     * Set Stack Poniter for Guest. ARM64 require stack be 16-bytes
+     * alignment by default.
+     */
+    data = GUEST_SIZE - 16;
+    reg.id = ARM64_CORE_REG(sp_el1);
+    ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM_SET_ONE_REG failed (SP)");
+
+
+    /* Passing ukvm_boot_info through x0 */
+    data = BOOT_INFO;
+    reg.id = ARM64_CORE_REG(regs.regs[0]);
+    ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM_SET_ONE_REG failed (x0])");
+
+    /* Set guest reset PC entry here */
+    data = reset_entry;
+    reg.id = ARM64_CORE_REG(regs.pc);
+    ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM_SET_ONE_REG failed (PC)");
 }
 
 void setup_system(int vmfd, int vcpufd, uint8_t *mem)
