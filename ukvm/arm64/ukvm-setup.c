@@ -236,3 +236,14 @@ void err_exit_and_dump_pc(struct kvm_regs *regs, int exit_code)
     errx(exit_code, "KVM: host/guest translation fault: pc=0x%llx",
          regs->regs.pc);
 }
+
+/* Check whether the guest memory size is valid. */
+void check_guest_memory_size(uint32_t size)
+{
+
+}
+
+void setup_cpuid(int kvm, int vcpufd)
+{
+
+}
