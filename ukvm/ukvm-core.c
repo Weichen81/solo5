@@ -577,6 +577,17 @@ void setup_user_memory_for_guest(int vmfd, int slot,
         err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
 }
 
+/* Check whether the guest memory size is valid. */
+void check_guest_memory_size(uint32_t size)
+{
+    /*
+     * TODO If the guest size is larger than ~4GB, we need two region
+     * slots: one before the pci gap, and one after it.
+     * Reference: kvmtool x86/kvm.c:kvm__init_ram()
+     */
+    assert(size < KVM_32BIT_GAP_START);
+}
+
 void sig_handler(int signo)
 {
     errx(1, "Exiting on signal %d", signo);
@@ -678,12 +689,8 @@ int main(int argc, char **argv)
     if (vmfd == -1)
         err(1, "KVM: ioctl (CREATE_VM) failed");
 
-    /*
-     * TODO If the guest size is larger than ~4GB, we need two region
-     * slots: one before the pci gap, and one after it.
-     * Reference: kvmtool x86/kvm.c:kvm__init_ram()
-     */
-    assert(GUEST_SIZE < KVM_32BIT_GAP_START);
+    /* Check guest memory size */
+    check_guest_memory_size(GUEST_SIZE);
 
     /* Allocate GUEST_SIZE page-aligned guest memory. */
     mem = mmap(NULL, GUEST_SIZE, PROT_READ | PROT_WRITE,
