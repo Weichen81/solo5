@@ -230,3 +230,9 @@ void setup_user_memory_for_guest(int vmfd,
     if (ret == -1)
         err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", used_slot);
 }
+
+void err_exit_and_dump_pc(struct kvm_regs *regs, int exit_code)
+{
+    errx(exit_code, "KVM: host/guest translation fault: pc=0x%llx",
+         regs->regs.pc);
+}
