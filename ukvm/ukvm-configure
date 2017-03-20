@@ -71,7 +71,7 @@ endif
 UKVM_HEADERS= \\
 $UKVM_SRC/ukvm-private.h \\
 $UKVM_SRC/ukvm-modules.h \\
-$UKVM_SRC/ukvm-cpu.h \\
+$UKVM_SRC/\$(ARCH)/ukvm-cpu.h \\
 $UKVM_SRC/ukvm.h
 
 _build-ukvm:
