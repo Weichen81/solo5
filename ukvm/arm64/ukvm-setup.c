@@ -78,3 +78,17 @@ void setup_boot_info(uint8_t *mem,
         cmdline_p += alen;
     }
 }
+
+static void setup_system_preferred_target(int vmfd, int vcpufd)
+{
+    int ret;
+    struct kvm_vcpu_init init;
+
+    ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, &init);
+    if (ret == -1)
+        err(1, "KVM: ioctl (KVM_ARM_PREFERRED_TARGET) failed");
+
+    ret = ioctl(vcpufd, KVM_ARM_VCPU_INIT, &init);
+    if (ret == -1)
+        err(1, "KVM: ioctl (KVM_ARM_VCPU_INIT) failed");
+}
