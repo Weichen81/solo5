@@ -34,7 +34,8 @@ int solo5_app_main(char *cmdline __attribute__((unused)))
 
     c[0] = 2.0;
     c[1] = 5.0;
-     __asm__ (
+#if defined(CONFIG_X86_64)
+    __asm__ (
          "movups %0,%%xmm1;"
          "mulps %%xmm1, %%xmm1;"
          "movups %%xmm1, %0"
@@ -42,6 +43,16 @@ int solo5_app_main(char *cmdline __attribute__((unused)))
          : "m" (c)
          : "xmm1"
     );
+#elif defined(CONFIG_ARM64)
+    __asm__(
+        "ldr d0, %0\n"
+        "ldr d1, %0\n"
+        "fmul v0.2s, v1.2s, v0.2s\n"
+        "str d0, %0\n"
+        : "=m" (c)
+        : "m" (c)
+    );
+#endif
 
     a = 1.5;
     b = 5.0;
