@@ -32,6 +32,7 @@
 
 #include "ukvm-private.h"
 #include "ukvm-cpu.h"
+#include "ukvm-api.h"
 #include "ukvm.h"
 
 /*
@@ -167,4 +168,65 @@ void setup_system(int vmfd, int vcpufd, uint8_t *mem)
     setup_system_preferred_target(vmfd, vcpufd);
 
     setup_system_enable_float(vcpufd);
+}
+
+/* Map a userspace memroy range as guest physical memroy. */
+void setup_user_memory_for_guest(int vmfd,
+                                 struct ukvm_mem_region_list *regions_list,
+                                 uint8_t *va_addr, uint64_t guest_phys_addr,
+                                 uint64_t size)
+{
+    int ret, idx;
+    uint32_t used_slot = 0;
+    uint64_t elf_va_end = 0, elf_pa_end = 0;
+    struct kvm_userspace_memory_region *elf_region;
+    struct kvm_userspace_memory_region region;
+
+    /* Register boot_info and unused region before ELF regions */
+    region.slot = 0;
+    region.flags = 0;
+    /* We will skip first 4K bytes for MMIO */
+    region.guest_phys_addr = guest_phys_addr + BOOT_MMIO_SZ;
+    region.memory_size = BOOT_ELF_ENTRY - BOOT_MMIO_SZ;
+    /*
+     * To keep the pa and va have the same offset in elf, we should skip
+     * first 4K bytes in va too.
+     */
+    region.userspace_addr = (uint64_t) va_addr + BOOT_MMIO_SZ,
+
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", used_slot);
+
+    used_slot++;
+    /* Register elf regions */
+    for (idx = 0; idx < regions_list->count; idx++) {
+        uint64_t va_end, pa_end;
+        elf_region = regions_list->regions + idx;
+
+        /* Update slot number with used slot before elf regions */
+        elf_region->slot = used_slot;
+        ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, elf_region);
+        if (ret == -1)
+            err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
+
+        va_end = elf_region->userspace_addr + elf_region->memory_size;
+        pa_end = elf_region->guest_phys_addr + elf_region->memory_size;
+        if (pa_end > elf_pa_end) {
+            elf_pa_end = pa_end;
+            elf_va_end = va_end;
+        }
+
+        used_slot++;
+    }
+
+    /* Register left memorys (elf_end to guest_size) */
+    region.slot = used_slot;
+    region.flags = 0;
+    region.guest_phys_addr = elf_pa_end;
+    region.memory_size = size - elf_pa_end;
+    region.userspace_addr = elf_va_end,
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", used_slot);
 }
