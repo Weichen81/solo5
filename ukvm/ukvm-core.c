@@ -441,6 +441,12 @@ void ukvm_port_poll(uint8_t *mem, uint64_t paddr)
     t->ret = rc;
 }
 
+void err_exit_and_dump_pc(struct kvm_regs *regs, int exit_code)
+{
+    errx(exit_code, "KVM: host/guest translation fault: rip=0x%llx",
+         regs->rip);
+}
+
 static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
 {
     int ret;
@@ -458,8 +464,7 @@ static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
                 ret = ioctl(vcpufd, KVM_GET_REGS, &regs);
                 if (ret == -1)
                     err(1, "KVM: ioctl (GET_REGS) failed after guest fault");
-                errx(1, "KVM: host/guest translation fault: rip=0x%llx",
-                        regs.rip);
+                err_exit_and_dump_pc(&regs, 1);
             }
             else
                 err(1, "KVM: ioctl (RUN) failed");
