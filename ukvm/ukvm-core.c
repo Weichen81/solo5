@@ -553,6 +553,25 @@ void setup_vcpu_init_register(int vcpufd, uint64_t reset_entry)
         err(1, "KVM: ioctl (SET_REGS) failed");
 }
 
+/* Map a userspace memroy range as guest physical memroy. */
+void setup_user_memory_for_guest(int vmfd, int slot,
+                                 uint32_t flags, uint8_t *va_addr,
+                                 uint64_t guest_phys_addr, uint32_t size)
+{
+    int ret;
+    struct kvm_userspace_memory_region region = {
+        .slot = slot,
+        .flags = flags,
+        .guest_phys_addr = guest_phys_addr,
+        .memory_size = size,
+        .userspace_addr = (uint64_t) va_addr,
+    };
+
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
+}
+
 void sig_handler(int signo)
 {
     errx(1, "Exiting on signal %d", signo);
@@ -669,16 +688,8 @@ int main(int argc, char **argv)
 
     load_code(elffile, mem, &elf_entry, &kernel_end);
 
-    struct kvm_userspace_memory_region region = {
-        .slot = 0,
-        .guest_phys_addr = 0,
-        .memory_size = GUEST_SIZE,
-        .userspace_addr = (uint64_t) mem,
-    };
-
-    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
-    if (ret == -1)
-        err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
+    /* Map a user memory for as physical memroy */
+    setup_user_memory_for_guest(vmfd, 0, 0, mem, 0, GUEST_SIZE);
 
 
     /* enabling this seems to mess up our receiving of hlt instructions */
