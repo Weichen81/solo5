@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2015-2017 Contributors as noted in the AUTHORS file
  *
  * This file is part of ukvm, a unikernel monitor.
@@ -530,6 +530,29 @@ int setup_modules(int vcpufd, uint8_t *mem)
     return 0;
 }
 
+/*
+ * Initialize registers: instruction pointer for our code, addends,
+ * and initial flags required by x86 architecture.
+ * Arguments to the kernel main are passed using the x86_64 calling
+ * convention: RDI, RSI, RDX, RCX, R8, and R9
+ */
+void setup_vcpu_init_register(int vcpufd, uint64_t reset_entry)
+{
+    int ret;
+    struct kvm_regs regs = {
+        .rip = reset_entry,
+        .rax = 2,
+        .rbx = 2,
+        .rflags = 0x2,
+        .rsp = GUEST_SIZE - 8,  /* x86_64 ABI requires ((rsp + 8) % 16) == 0 */
+        .rdi = BOOT_INFO,       /* size arg in kernel main */
+    };
+
+    ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
+    if (ret == -1)
+        err(1, "KVM: ioctl (SET_REGS) failed");
+}
+
 void sig_handler(int signo)
 {
     errx(1, "Exiting on signal %d", signo);
@@ -673,24 +696,8 @@ int main(int argc, char **argv)
     /* Setup ukvm_boot_info and command line */
     setup_boot_info(mem, GUEST_SIZE, kernel_end, argc, argv);
 
-    /*
-     * Initialize registers: instruction pointer for our code, addends,
-     * and initial flags required by x86 architecture.
-     * Arguments to the kernel main are passed using the x86_64 calling
-     * convention: RDI, RSI, RDX, RCX, R8, and R9
-     */
-    struct kvm_regs regs = {
-        .rip = elf_entry,
-        .rax = 2,
-        .rbx = 2,
-        .rflags = 0x2,
-        .rsp = GUEST_SIZE - 8,  /* x86_64 ABI requires ((rsp + 8) % 16) == 0 */
-        .rdi = BOOT_INFO,       /* size arg in kernel main */
-    };
-    ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
-    if (ret == -1)
-        err(1, "KVM: ioctl (SET_REGS) failed");
-
+    /* Initialize vcpu registers */
+    setup_vcpu_init_register(vcpufd, elf_entry);
 
     /* Map the shared kvm_run structure and following data. */
     ret = ioctl(kvm, KVM_GET_VCPU_MMAP_SIZE, NULL);
