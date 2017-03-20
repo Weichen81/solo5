@@ -361,7 +361,7 @@ static void setup_system_gdt(struct kvm_sregs *sregs,
     sregs->ss = data_seg;
 }
 
-static void setup_system(int vcpufd, uint8_t *mem)
+static void setup_system(int vmfd, int vcpufd, uint8_t *mem)
 {
     struct kvm_sregs sregs;
     int ret;
@@ -702,7 +702,7 @@ int main(int argc, char **argv)
         err(1, "KVM: ioctl (CREATE_VCPU) failed");
 
     /* Setup x86 system registers and memory. */
-    setup_system(vcpufd, mem);
+    setup_system(vmfd, vcpufd, mem);
 
     /* Setup ukvm_boot_info and command line */
     setup_boot_info(mem, GUEST_SIZE, kernel_end, argc, argv);
