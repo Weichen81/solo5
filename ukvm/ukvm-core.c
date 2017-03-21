@@ -147,15 +147,9 @@ static void load_code(const char *file, uint8_t *mem,     /* IN */
      * 1. EI_MAG fields 0, 1, 2, 3 spell ELFMAG('0x7f', 'E', 'L', 'F'),
      * 2. File contains 64-bit objects,
      * 3. Objects are Executable,
-     * 4. Target instruction set architecture is set to x86_64.
+     * 4. Target instruction must be set to the correct architecture.
      */
-    if (hdr.e_ident[EI_MAG0] != ELFMAG0
-            || hdr.e_ident[EI_MAG1] != ELFMAG1
-            || hdr.e_ident[EI_MAG2] != ELFMAG2
-            || hdr.e_ident[EI_MAG3] != ELFMAG3
-            || hdr.e_ident[EI_CLASS] != ELFCLASS64
-            || hdr.e_type != ET_EXEC
-            || hdr.e_machine != EM_X86_64)
+    if (CHECK_INVALID_ELF64_FORMAT_IMAGE(hdr))
         goto out_invalid;
 
     ph_off = hdr.e_phoff;

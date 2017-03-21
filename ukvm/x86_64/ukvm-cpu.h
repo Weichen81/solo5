@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2015-2017 Contributors as noted in the AUTHORS file
  *
  * This file is part of ukvm, a unikernel monitor.
@@ -132,5 +132,17 @@ struct _kvm_segment {
         seg.g = GDT_GET_G(gdt_ent);             \
         seg.avl = GDT_GET_AVL(gdt_ent);         \
     } while (0)
+
+/* define ELF64 format Image check for x86_64 */
+#define CHECK_INVALID_ELF64_FORMAT_IMAGE(h) \
+(                                           \
+    (h).e_ident[EI_MAG0] != ELFMAG0 ||      \
+    (h).e_ident[EI_MAG1] != ELFMAG1 ||      \
+    (h).e_ident[EI_MAG2] != ELFMAG2 ||      \
+    (h).e_ident[EI_MAG3] != ELFMAG3 ||      \
+    (h).e_ident[EI_CLASS] != ELFCLASS64 ||  \
+    (h).e_type != ET_EXEC ||                \
+    (h).e_machine != EM_X86_64              \
+)
 
 #endif

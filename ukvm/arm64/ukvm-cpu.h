@@ -45,6 +45,18 @@
 #define GENMASK64(h, l) \
     (((~0ULL) << (l)) & (~0ULL >> (BITS_64 - 1 - (h))))
 
+/* Define ELF64 format Image check for ARM64 */
+#define CHECK_INVALID_ELF64_FORMAT_IMAGE(h) \
+(                                           \
+    (h).e_ident[EI_MAG0] != ELFMAG0 ||      \
+    (h).e_ident[EI_MAG1] != ELFMAG1 ||      \
+    (h).e_ident[EI_MAG2] != ELFMAG2 ||      \
+    (h).e_ident[EI_MAG3] != ELFMAG3 ||      \
+    (h).e_ident[EI_CLASS] != ELFCLASS64 ||  \
+    (h).e_type != ET_EXEC ||                \
+    (h).e_machine != EM_AARCH64             \
+)
+
 /* Normal registers are mapped as coprocessor 16. */
 #define KVM_REG_ARM_CORE    (0x0010 << KVM_REG_ARM_COPROC_SHIFT)
 
