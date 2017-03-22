@@ -55,6 +55,8 @@ static inline uint32_t ukvm_ptr(volatile void *p)
 
 #define UKVM_PORT_POLL      0x509
 
+#define UKVM_PORT_HALT      0x510
+
 #elif defined(CONFIG_ARM64)
 /* ARM64 MMIO access must be alignment */
 
@@ -73,6 +75,7 @@ static inline uint32_t ukvm_ptr(volatile void *p)
 
 #define UKVM_PORT_POLL      0x520
 
+#define UKVM_PORT_HALT      0x524
 #endif
 
 /*

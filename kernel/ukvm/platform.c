@@ -24,7 +24,11 @@ void platform_exit(void)
 {
     /*
      * Halt will cause an exit (as in "shutdown") on ukvm.
+     * Some architecutre doesn't support halt instruction exit
+     * to hypervisor, so we use a hypercall to make this code
+     * architecture independent.
      */
+    outl(UKVM_PORT_HALT, 0);
     cpu_halt();
 }
 
