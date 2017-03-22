@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2015-2017 Contributors as noted in the AUTHORS file
  *
  * This file is part of ukvm, a unikernel monitor.
@@ -98,17 +98,9 @@ static void ukvm_port_blkread(uint8_t *mem, uint64_t paddr)
     rd->ret = 0;
 }
 
-static int handle_exit(struct kvm_run *run, int vcpufd, uint8_t *mem)
+static int handle_io_exit(uint16_t port, uint8_t *mem, uint64_t paddr)
 {
-    if ((run->exit_reason != KVM_EXIT_IO) ||
-        (run->io.direction != KVM_EXIT_IO_OUT) ||
-        (run->io.size != 4))
-        return -1;
-
-    uint64_t paddr =
-        GUEST_PIO32_TO_PADDR((uint8_t *)run + run->io.data_offset);
-
-    switch (run->io.port) {
+    switch (port) {
     case UKVM_PORT_BLKINFO:
         ukvm_port_blkinfo(mem, paddr);
         break;
@@ -123,6 +115,35 @@ static int handle_exit(struct kvm_run *run, int vcpufd, uint8_t *mem)
     }
 
     return 0;
+}
+
+static int handle_exit(struct kvm_run *run, int vcpufd, uint8_t *mem)
+{
+    switch (run->exit_reason)
+    {
+        case KVM_EXIT_IO: {
+            if (run->io.direction != KVM_EXIT_IO_OUT
+                    || run->io.size != 4)
+                return -1;
+
+            uint64_t paddr =
+                GUEST_PIO32_TO_PADDR((uint8_t *)run + run->io.data_offset);
+
+            return handle_io_exit(run->io.port, mem, paddr);
+        }
+
+        case KVM_EXIT_MMIO: {
+            uint64_t paddr = 0;
+
+            if ( !run->mmio.is_write || run->mmio.len != 4)
+                return -1;
+
+            memcpy(&paddr, run->mmio.data, run->mmio.len);
+            return handle_io_exit(run->mmio.phys_addr, mem, paddr);
+        }
+    }
+
+    return -1;
 }
 
 static int handle_cmdarg(char *cmdarg)
