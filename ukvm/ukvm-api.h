@@ -21,6 +21,11 @@
 #ifndef __UKVM_API_H__
 #define __UKVM_API_H__
 
+struct ukvm_mem_region_list {
+    struct kvm_userspace_memory_region *regions;
+    int count;
+};
+
 void setup_boot_info(uint8_t *mem,
                     uint64_t size,
                     uint64_t kernel_end,

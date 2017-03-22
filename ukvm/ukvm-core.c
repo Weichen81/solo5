@@ -111,7 +111,8 @@ ssize_t pread_in_full(int fd, void *buf, size_t count, off_t offset)
  *
  */
 static void load_code(const char *file, uint8_t *mem,     /* IN */
-                      uint64_t *p_entry, uint64_t *p_end) /* OUT */
+                      uint64_t *p_entry, uint64_t *p_end, /* OUT */
+                      struct ukvm_mem_region_list *region_list) /* OUT */
 {
     int fd_kernel;
     ssize_t numb;
@@ -122,11 +123,14 @@ static void load_code(const char *file, uint8_t *mem,     /* IN */
     Elf64_Half ph_i;
     Elf64_Phdr *phdr = NULL;
     Elf64_Ehdr hdr;
+    struct kvm_userspace_memory_region *regions;
 
     /* elf entry point (on physical memory) */
     *p_entry = 0;
     /* highest byte of the program (on physical memory) */
     *p_end = 0;
+    /* Initialize the number of memory regions to 0 */
+    region_list->count = 0;
 
     fd_kernel = open(file, O_RDONLY);
     if (fd_kernel == -1)
@@ -167,6 +171,11 @@ static void load_code(const char *file, uint8_t *mem,     /* IN */
         goto out_error;
     if (numb != buflen)
         goto out_invalid;
+
+    regions = malloc(sizeof(*regions) * ph_cnt);
+    if (!regions)
+        goto out_error;
+    region_list->regions = regions;
 
     /*
      * Load all segments with the LOAD directive from the elf file at offset
@@ -219,7 +228,16 @@ static void load_code(const char *file, uint8_t *mem,     /* IN */
         if (phdr[ph_i].p_flags & PF_X) {
             if (mprotect(daddr, _end - paddr, PROT_EXEC | PROT_READ) == -1)
                 goto out_error;
+            regions[ph_i].flags = KVM_MEM_READONLY;
         }
+        else
+            regions[ph_i].flags = 0;
+
+        regions[ph_i].slot = ph_i;
+        regions[ph_i].guest_phys_addr = (uint64_t)paddr;
+        regions[ph_i].memory_size = _end - paddr;
+        regions[ph_i].userspace_addr = (uint64_t)daddr;
+        region_list->count++;
     }
 
     free (phdr);
@@ -394,6 +412,7 @@ int main(int argc, char **argv)
     uint8_t *mem;
     struct kvm_run *run;
     size_t mmap_size;
+    struct ukvm_mem_region_list mem_region_list;
     uint64_t elf_entry;
     uint64_t kernel_end;
     const char *prog;
@@ -475,11 +494,10 @@ int main(int argc, char **argv)
     if (mem == MAP_FAILED)
         err(1, "Error allocating guest memory");
 
-    load_code(elffile, mem, &elf_entry, &kernel_end);
+    load_code(elffile, mem, &elf_entry, &kernel_end, &mem_region_list);
 
     /* Map a user memory for as physical memroy */
     setup_user_memory_for_guest(vmfd, 0, 0, mem, 0, GUEST_SIZE);
-
 
     /* enabling this seems to mess up our receiving of hlt instructions */
     /* ret = ioctl(vmfd, KVM_CREATE_IRQCHIP); */
