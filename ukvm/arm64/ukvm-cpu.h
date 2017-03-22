@@ -37,6 +37,14 @@
 
 #endif
 
+#define BITS_32 32
+#define BITS_64 64
+
+#define GENMASK32(h, l) \
+    (((~0U) << (l)) & (~0U >> (BITS_32 - 1 - (h))))
+#define GENMASK64(h, l) \
+    (((~0ULL) << (l)) & (~0ULL >> (BITS_64 - 1 - (h))))
+
 /* Normal registers are mapped as coprocessor 16. */
 #define KVM_REG_ARM_CORE    (0x0010 << KVM_REG_ARM_COPROC_SHIFT)
 
