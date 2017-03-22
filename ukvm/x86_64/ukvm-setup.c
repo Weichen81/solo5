@@ -32,6 +32,7 @@
 
 #include "ukvm-private.h"
 #include "ukvm-cpu.h"
+#include "ukvm-api.h"
 #include "ukvm.h"
 
 /*
@@ -221,14 +222,15 @@ void setup_vcpu_init_register(int vcpufd, uint64_t reset_entry)
 }
 
 /* Map a userspace memroy range as guest physical memroy. */
-void setup_user_memory_for_guest(int vmfd, int slot,
-                                 uint32_t flags, uint8_t *va_addr,
-                                 uint64_t guest_phys_addr, uint32_t size)
+void setup_user_memory_for_guest(int vmfd,
+                                 struct ukvm_mem_region_list *regions_list,
+                                 uint8_t *va_addr, uint64_t guest_phys_addr,
+                                 uint64_t size)
 {
     int ret;
     struct kvm_userspace_memory_region region = {
-        .slot = slot,
-        .flags = flags,
+        .slot = 0,
+        .flags = 0,
         .guest_phys_addr = guest_phys_addr,
         .memory_size = size,
         .userspace_addr = (uint64_t) va_addr,

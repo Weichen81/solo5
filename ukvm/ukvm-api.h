@@ -37,9 +37,10 @@ void setup_cpuid(int kvm, int vcpufd);
 
 void setup_vcpu_init_register(int vcpufd, uint64_t reset_entry);
 
-void setup_user_memory_for_guest(int vmfd, int slot,
-                                 uint32_t flags, uint8_t *va_addr,
-                                 uint64_t guest_phys_addr, uint32_t size);
+void setup_user_memory_for_guest(int vmfd,
+                                 struct ukvm_mem_region_list *regions_list,
+                                 uint8_t *va_addr, uint64_t guest_phys_addr,
+                                 uint64_t size);
 
 void check_guest_memory_size(uint32_t size);
 

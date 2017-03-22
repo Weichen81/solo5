@@ -497,7 +497,7 @@ int main(int argc, char **argv)
     load_code(elffile, mem, &elf_entry, &kernel_end, &mem_region_list);
 
     /* Map a user memory for as physical memroy */
-    setup_user_memory_for_guest(vmfd, 0, 0, mem, 0, GUEST_SIZE);
+    setup_user_memory_for_guest(vmfd, &mem_region_list, mem, 0, GUEST_SIZE);
 
     /* enabling this seems to mess up our receiving of hlt instructions */
     /* ret = ioctl(vmfd, KVM_CREATE_IRQCHIP); */
