@@ -92,3 +92,24 @@ static void setup_system_preferred_target(int vmfd, int vcpufd)
     if (ret == -1)
         err(1, "KVM: ioctl (KVM_ARM_VCPU_INIT) failed");
 }
+
+static void setup_system_enable_float(int vcpufd)
+{
+    int ret;
+    uint64_t data;
+    struct kvm_one_reg reg = {
+        .addr = (uint64_t)&data,
+    };
+
+    /* Enable the floating-point and Advanced SIMD registers for Guest */
+    reg.id	= CPACR_EL1;
+    ret = ioctl(vcpufd, KVM_GET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM: Get CPACR_EL1 failed");
+
+    data &= ~(_FPEN_MASK);
+    data |= (_FPEN_NOTRAP << _FPEN_SHIFT);
+    ret = ioctl(vcpufd, KVM_SET_ONE_REG, &reg);
+    if (ret == -1)
+         err(1, "KVM: Enable SIMD[:FPEN] failed");
+}

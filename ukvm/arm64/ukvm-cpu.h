@@ -52,5 +52,17 @@
             (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
             KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
+/*
+ * KVM/ARM64 provides an interface to userspace to modify the
+ * VM registers. This interface describe the register by index.
+ * We have to define the index here for those registers that we
+ * will modify.
+ */
+/* Architectural Feature Access Control Register */
+#define CPACR_EL1               ARM64_SYS_REG(3, 0, 1, 0, 2)
+#define _FPEN_NOTRAP            0x3
+#define _FPEN_SHIFT             20
+#define _FPEN_MASK              GENMASK32(21, 20)
+
 #endif /* __UKVM_CPU_H__ */
 
