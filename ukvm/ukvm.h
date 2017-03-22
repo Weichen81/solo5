@@ -38,6 +38,8 @@ static inline uint32_t ukvm_ptr(volatile void *p)
 	return (uint32_t)((uint64_t)p & 0xffffffff);
 }
 
+#if defined(CONFIG_X86_64)
+
 #define UKVM_PORT_PUTS      0x499
 /* was UKVM_PORT_NANOSLEEP 0x500 */
 
@@ -52,6 +54,26 @@ static inline uint32_t ukvm_ptr(volatile void *p)
 /* was UKVM_PORT_DBG_STACK 0x508 */
 
 #define UKVM_PORT_POLL      0x509
+
+#elif defined(CONFIG_ARM64)
+/* ARM64 MMIO access must be alignment */
+
+#define UKVM_PORT_PUTS      0x49C
+/* was UKVM_PORT_NANOSLEEP 0x500 */
+
+#define UKVM_PORT_BLKINFO   0x504
+#define UKVM_PORT_BLKWRITE  0x508
+#define UKVM_PORT_BLKREAD   0x50C
+
+#define UKVM_PORT_NETINFO   0x510
+#define UKVM_PORT_NETWRITE  0x514
+#define UKVM_PORT_NETREAD   0x518
+
+/* was UKVM_PORT_DBG_STACK 0x51C */
+
+#define UKVM_PORT_POLL      0x520
+
+#endif
 
 /*
  * Guest-provided pointers in UKVM I/O operations MUST be declared with
