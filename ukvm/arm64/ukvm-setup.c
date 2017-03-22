@@ -113,3 +113,10 @@ static void setup_system_enable_float(int vcpufd)
     if (ret == -1)
          err(1, "KVM: Enable SIMD[:FPEN] failed");
 }
+
+void setup_system(int vmfd, int vcpufd, uint8_t *mem)
+{
+    setup_system_preferred_target(vmfd, vcpufd);
+
+    setup_system_enable_float(vcpufd);
+}
