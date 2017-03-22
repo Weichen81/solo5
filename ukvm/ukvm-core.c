@@ -289,6 +289,25 @@ void ukvm_port_poll(uint8_t *mem, uint64_t paddr)
     t->ret = rc;
 }
 
+static int handle_io_exit(uint16_t port, uint8_t *mem, uint64_t paddr)
+{
+    switch (port) {
+    case UKVM_PORT_PUTS:
+        ukvm_port_puts(mem, paddr);
+        return 1;
+    case UKVM_PORT_POLL:
+        ukvm_port_poll(mem, paddr);
+        return 1;
+    case UKVM_PORT_HALT:
+        /* Guest has halted the CPU, this is considered as a normal exit. */
+        return 0;
+    default:
+        errx(1, "Invalid guest port access: port=0x%x", port);
+    }
+
+    return 0;
+}
+
 static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
 {
     int ret;
@@ -335,17 +354,10 @@ static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
             uint64_t paddr =
                 GUEST_PIO32_TO_PADDR((uint8_t *)run + run->io.data_offset);
 
-            switch (run->io.port) {
-            case UKVM_PORT_PUTS:
-                ukvm_port_puts(mem, paddr);
+            if (handle_io_exit(run->io.port, mem, paddr))
                 break;
-            case UKVM_PORT_POLL:
-                ukvm_port_poll(mem, paddr);
-                break;
-            default:
-                errx(1, "Invalid guest port access: port=0x%x", run->io.port);
-            }
-            break;
+
+            return 0;
         }
 
         case KVM_EXIT_MMIO: {
@@ -355,18 +367,10 @@ static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
                 errx(1, "Invalid guest port access: port=0x%llx", run->mmio.phys_addr);
 
             memcpy(&paddr, run->mmio.data, run->mmio.len);
+            if (handle_io_exit(run->mmio.phys_addr, mem, paddr))
+                break;
 
-            switch (run->mmio.phys_addr) {
-            case UKVM_PORT_PUTS:
-                ukvm_port_puts(mem, paddr);
-                break;
-            case UKVM_PORT_POLL:
-                ukvm_port_poll(mem, paddr);
-                break;
-            default:
-                errx(1, "Invalid guest port access: port=0x%llx", run->mmio.phys_addr);
-            }
-            break;
+            return 0;
         }
 
         case KVM_EXIT_FAIL_ENTRY:
