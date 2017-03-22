@@ -348,6 +348,27 @@ static int vcpu_loop(struct kvm_run *run, int vcpufd, uint8_t *mem)
             break;
         }
 
+        case KVM_EXIT_MMIO: {
+            uint64_t paddr = 0;
+
+            if ( !run->mmio.is_write || run->mmio.len != 4)
+                errx(1, "Invalid guest port access: port=0x%llx", run->mmio.phys_addr);
+
+            memcpy(&paddr, run->mmio.data, run->mmio.len);
+
+            switch (run->mmio.phys_addr) {
+            case UKVM_PORT_PUTS:
+                ukvm_port_puts(mem, paddr);
+                break;
+            case UKVM_PORT_POLL:
+                ukvm_port_poll(mem, paddr);
+                break;
+            default:
+                errx(1, "Invalid guest port access: port=0x%llx", run->mmio.phys_addr);
+            }
+            break;
+        }
+
         case KVM_EXIT_FAIL_ENTRY:
             errx(1, "KVM: entry failure: hw_entry_failure_reason=0x%llx",
                  run->fail_entry.hardware_entry_failure_reason);
