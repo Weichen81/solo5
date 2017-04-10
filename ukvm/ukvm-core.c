@@ -518,6 +518,8 @@ int main(int argc, char **argv)
     /* Map a user memory for as physical memroy */
     setup_user_memory_for_guest(vmfd, &mem_region_list, mem, 0, GUEST_SIZE);
 
+    free(mem_region_list.regions);
+
     /* enabling this seems to mess up our receiving of hlt instructions */
     /* ret = ioctl(vmfd, KVM_CREATE_IRQCHIP); */
     /* if (ret == -1) */
