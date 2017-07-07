@@ -41,6 +41,12 @@
 
 #include "ukvm.h"
 
+#if defined(__aarch64__)
+static Elf64_Shdr *ukvm_kernel_elf_section_headers;
+static char *ukvm_kernel_elf_section_names;
+static int ukvm_kernel_elf_section_numbers;
+#endif
+
 static ssize_t pread_in_full(int fd, void *buf, size_t count, off_t offset)
 {
     ssize_t total = 0;
@@ -70,6 +76,61 @@ static ssize_t pread_in_full(int fd, void *buf, size_t count, off_t offset)
 
     return total;
 }
+
+#if defined(__aarch64__)
+static void ukvm_elf_load_section_headers(int fd, Elf64_Ehdr *hdr)
+{
+    Elf64_Shdr *shstrtab;
+    ssize_t numb;
+    size_t buflen;
+
+    buflen = hdr->e_shentsize * hdr->e_shnum;
+    ukvm_kernel_elf_section_headers = malloc(buflen);
+    if (!ukvm_kernel_elf_section_headers)
+        goto out_error;
+
+    numb = pread_in_full(fd, ukvm_kernel_elf_section_headers,
+                         buflen, hdr->e_shoff);
+    if (numb < 0)
+        goto out_error;
+
+    shstrtab = ukvm_kernel_elf_section_headers + hdr->e_shstrndx;
+    ukvm_kernel_elf_section_names = malloc(shstrtab->sh_size);
+    if (!ukvm_kernel_elf_section_names)
+        goto out_error;
+
+    numb = pread_in_full(fd, ukvm_kernel_elf_section_names,
+                         shstrtab->sh_size, shstrtab->sh_offset);
+    if (numb < 0)
+        goto out_error;
+
+    ukvm_kernel_elf_section_numbers = hdr->e_shnum;
+
+    return;
+
+out_error:
+    err(1, "Loading section headers from ELF image failed\n");
+}
+
+static Elf64_Shdr *ukvm_elf_get_section_header_by_name(char *name)
+{
+    Elf64_Shdr *section;
+    int idx;
+
+    for (idx = 0; idx < ukvm_kernel_elf_section_numbers; idx++) {
+        section = ukvm_kernel_elf_section_headers + idx;
+
+        /* Skip section without name */
+        if (section->sh_name == 0)
+            continue;
+
+        if (!strcmp(name, ukvm_kernel_elf_section_names + section->sh_name))
+            return section;
+    }
+
+    return NULL;
+}
+#endif
 
 /*
  * Load code from elf file into *mem and return the elf entry point
