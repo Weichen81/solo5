@@ -51,5 +51,16 @@ struct trap_regs {
     uint64_t pad;
 };
 
+/*
+ * The remainder of this file is used only from C.
+ */
+static inline uint64_t cpu_cntvct(void)
+{
+    uint64_t val;
+
+    __asm__ __volatile__("mrs %0, cntvct_el0" : "=r" (val)::);
+    return val;
+}
+
 #endif /* !ASM_FILE */
 
