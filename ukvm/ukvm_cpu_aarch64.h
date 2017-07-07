@@ -107,6 +107,12 @@
 /* Generic Purpose register x0 */
 #define REG_X0              ARM64_CORE_REG(regs.regs[0])
 
+/* Architectural Feature Access Control Register EL1 */
+#define CPACR_EL1           ARM64_SYS_REG(3, 0, 1, 0, 2)
+#define _FPEN_NOTRAP        0x3
+#define _FPEN_SHIFT         20
+#define _FPEN_MASK          GENMASK32(21, 20)
+
 /* Memory Attribute Indirection Register EL1 */
 #define MAIR_EL1            ARM64_SYS_REG(3, 0, 10, 2, 0)
 
@@ -303,6 +309,8 @@ uint64_t ukvm_end_of_kernel_etext;
 void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
                                uint64_t guest_phys_addr, uint64_t size,
                                ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);
+
+void ukvm_aarch64_setup_system(int vmfd, int vcpufd);
 
 void ukvm_aarch64_setup_core(struct ukvm_hv *hv,
                              ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);

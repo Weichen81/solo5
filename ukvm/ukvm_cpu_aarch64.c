@@ -233,6 +233,37 @@ static uint64_t aarch64_get_counter_frequency(void)
     return frq;
 }
 
+static void aarch64_setup_preferred_target(int vmfd, int vcpufd)
+{
+    int ret;
+    struct kvm_vcpu_init init;
+
+    ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, &init);
+    if (ret == -1)
+        err(1, "KVM: ioctl (KVM_ARM_PREFERRED_TARGET) failed");
+
+    ret = ioctl(vcpufd, KVM_ARM_VCPU_INIT, &init);
+    if (ret == -1)
+        err(1, "KVM: ioctl (KVM_ARM_VCPU_INIT) failed");
+}
+
+static void aarch64_enable_guest_float(int vcpufd)
+{
+    int ret;
+    uint64_t data;
+
+    /* Enable the floating-point and Advanced SIMD registers for Guest */
+    ret = aarch64_get_one_register(vcpufd, CPACR_EL1, &data);
+    if (ret == -1)
+         err(1, "KVM: Get Architectural Feature Access Control Register failed");
+
+    data &= ~(_FPEN_MASK);
+    data |= (_FPEN_NOTRAP << _FPEN_SHIFT);
+    ret = aarch64_set_one_register(vcpufd, CPACR_EL1, data);
+    if (ret == -1)
+         err(1, "KVM: Enable the floating-point and Advanced SIMD for Guest failed");
+}
+
 static void aarch64_enable_guest_mmu(int vcpufd)
 {
     int ret;
@@ -348,6 +379,18 @@ void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
 
 out_error:
     err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", region.slot);
+}
+
+/*
+ * Configure aarch64 system registers for guest.
+ */
+void ukvm_aarch64_setup_system(int vmfd, int vcpufd)
+{
+    aarch64_setup_preferred_target(vmfd, vcpufd);
+
+    aarch64_enable_guest_float(vcpufd);
+
+    aarch64_enable_guest_mmu(vcpufd);
 }
 
 /*
