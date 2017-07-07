@@ -20,6 +20,31 @@
 
 #include "ukvm/kernel.h"
 
+extern void *exception_vectors;
+
+static const char *exception_modes[]= {
+    "Synchronous Abort",
+    "IRQ",
+    "FIQ",
+    "Error"
+};
+
+void cpu_init(void)
+{
+    __asm__ __volatile__("msr VBAR_EL1, %0"
+            :
+            : "r" ((uint64_t)&exception_vectors)
+            : "memory");
+}
+
+void cpu_trap_handler(int el, int mode)
+{
+    log(INFO, "Solo5: trap: Exception caught in EL%d:%s\n",
+        el, exception_modes[mode]);
+
+    PANIC("Fatal trap");
+}
+
 /* keeps track of cpu_intr_disable() depth */
 int cpu_intr_depth = 1;
 

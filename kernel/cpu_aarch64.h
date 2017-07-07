@@ -39,3 +39,17 @@
 #define PAGE_SHIFT              12
 #define PAGE_MASK               ~(0xfff)
 
+#ifndef ASM_FILE
+
+/* Must be 16-bytes alignment */
+struct trap_regs {
+    uint64_t regs[31];
+    uint64_t pc;
+    uint64_t sp;
+    uint64_t pstate;
+    uint64_t esr;
+    uint64_t pad;
+};
+
+#endif /* !ASM_FILE */
+
