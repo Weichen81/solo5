@@ -42,6 +42,8 @@
 #include "ukvm.h"
 
 #if defined(__aarch64__)
+uint64_t ukvm_end_of_kernel_rodata, ukvm_end_of_kernel_etext;
+
 static Elf64_Shdr *ukvm_kernel_elf_section_headers;
 static char *ukvm_kernel_elf_section_names;
 static int ukvm_kernel_elf_section_numbers;
@@ -130,6 +132,37 @@ static Elf64_Shdr *ukvm_elf_get_section_header_by_name(char *name)
 
     return NULL;
 }
+
+static void ukvm_get_info_from_elf(int fd_kernel, Elf64_Ehdr *elf_hdr)
+{
+    Elf64_Shdr *shdr;
+    /*
+     * AArch64 must use separate kvm_userspace_memory_region for readonly
+     * and writeable memory. So we have to get .text, .rodata and .data
+     * from elf image.
+     */
+    ukvm_elf_load_section_headers(fd_kernel, elf_hdr);
+
+    /* The start of .rodata is the end of .text */
+    shdr = ukvm_elf_get_section_header_by_name(".rodata");
+    if (!shdr)
+        err(1, "Could not find .rodata from guest image");
+    ukvm_end_of_kernel_etext = shdr->sh_addr;
+
+    /*
+     * The kernel is a static image, so we don't have .got section. So
+     * the address of .data is the beginning address of writeable data.
+     */
+    shdr = ukvm_elf_get_section_header_by_name(".data");
+    if (!shdr)
+        err(1, "Could not find .data from guest image");
+    ukvm_end_of_kernel_rodata = shdr->sh_addr;
+
+    /* We should not use following data anymore, free them */
+    free(ukvm_kernel_elf_section_headers);
+    free(ukvm_kernel_elf_section_names);
+    ukvm_kernel_elf_section_numbers = 0;
+}
 #endif
 
 /*
@@ -206,6 +239,10 @@ void ukvm_elf_load(const char *file, uint8_t *mem, size_t mem_size,
     if (numb != buflen)
         goto out_invalid;
 
+#if defined(__aarch64__)
+    ukvm_get_info_from_elf(fd_kernel, &hdr);
+#endif
+
     /*
      * Load all segments with the LOAD directive from the elf file at offset
      * p_offset, and copy that into p_addr in memory. The amount of bytes
@@ -257,8 +294,13 @@ void ukvm_elf_load(const char *file, uint8_t *mem, size_t mem_size,
         prot = PROT_NONE;
         if (phdr[ph_i].p_flags & PF_R)
             prot |= PROT_READ;
-        if (phdr[ph_i].p_flags & PF_W)
+        if (phdr[ph_i].p_flags & PF_W) {
+#if defined(__aarch64__)
+            if (paddr < ukvm_end_of_kernel_rodata)
+                err(1, "WRITE permission could not allowed in readonly area\n");
+#endif
             prot |= PROT_WRITE;
+        }
         if (phdr[ph_i].p_flags & PF_X)
             prot |= PROT_EXEC;
         if (prot & PROT_WRITE && prot & PROT_EXEC)
