@@ -62,3 +62,9 @@ void cpu_intr_enable(void)
         __asm__ __volatile__("msr daifclr, #2");
 }
 
+void cpu_halt(void)
+{
+    ukvm_do_hypercall(UKVM_HYPERCALL_HALT, NULL);
+    for(;;);
+}
+
