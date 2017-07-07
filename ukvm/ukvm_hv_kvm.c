@@ -80,6 +80,7 @@ struct ukvm_hv *ukvm_hv_init(size_t mem_size)
         err(1, "Error allocating guest memory");
     hv->mem_size = mem_size;
 
+#if !defined(__aarch64__)
     struct kvm_userspace_memory_region region = {
         .slot = 0,
         .guest_phys_addr = 0,
@@ -89,6 +90,7 @@ struct ukvm_hv *ukvm_hv_init(size_t mem_size)
     ret = ioctl(hvb->vmfd, KVM_SET_USER_MEMORY_REGION, &region);
     if (ret == -1)
         err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
+#endif
 
     hv->b = hvb;
     return hv;
