@@ -308,6 +308,11 @@ static void aarch64_enable_guest_mmu(int vcpufd)
          err(1, "KVM: Setup System Control Register EL1 failed");
 }
 
+int ukvm_aarch64_dump_pc(int vcpufd, uint64_t *pdata)
+{
+    return aarch64_get_one_register(vcpufd, REG_PC, pdata);
+}
+
 /* Map a userspace memroy range as guest physical memroy. */
 void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
                                uint64_t guest_phys_addr, uint64_t size,
