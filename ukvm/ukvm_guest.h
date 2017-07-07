@@ -34,7 +34,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __x86_64__
 /*
  * Arch-dependent part of struct ukvm_boot_info.
  */
@@ -42,6 +41,7 @@ struct ukvm_cpu_boot_info {
     uint64_t tsc_freq;                  /* TSC frequency in Hz */
 };
 
+#ifdef __x86_64__
 /*
  * PIO base address used to dispatch hypercalls.
  */
@@ -73,6 +73,42 @@ static inline void ukvm_do_hypercall(int n, volatile void *arg)
 }
 #    endif
 
+#elif defined(__aarch64__)
+/*
+ * MMIO base address used to dispatch hypercalls.
+ */
+#define UKVM_HYPERCALL_MMIO_BASE 0x500
+
+#    ifdef UKVM_HOST
+/*
+ * Non-dereferencable monitor-side type representing a guest physical address.
+ */
+typedef uint64_t ukvm_gpa_t;
+#    else
+/*
+ * On aarch64, the MMIO address must be 32-bit aligned. We access this
+ * address in 32-bit. So the real hypercall ID will be calculated as:
+ * UKVM_HYPERCALL_MMIO_BASE + (ID << 2).
+ *
+ * In order to keep consistency with x86_64, we limit this hypercall only
+ * to support sending 32-bit pointers; raise an assertion if a bigger
+ * pointer is used.
+ *
+ * On aarch64 the compiler-only memory barrier ("memory" clobber) is
+ * sufficient across the hypercall boundary.
+ */
+static inline void ukvm_do_hypercall(int n, volatile void *arg)
+{
+#    ifdef assert
+    assert(((uint64_t)arg <= UINT32_MAX));
+#    endif
+	__asm__ __volatile__("str %w0, [%1]"
+	        :
+	        : "rZ" ((uint32_t)((uint64_t)arg)),
+	          "r" ((uint16_t)(UKVM_HYPERCALL_MMIO_BASE + (n << 2)))
+	        : "memory");
+}
+#    endif
 #else
 #    error Unsupported architecture
 #endif
