@@ -87,6 +87,26 @@
             (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
             KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
+/* Saved Program Status Register EL1 */
+#define SPSR_EL1            ARM64_CORE_REG(regs.pstate)
+
+/*
+ * Default PSTATE flags:
+ * Mask Debug, Abort, IRQ and FIQ. Switch to EL1h mode
+ */
+#define AARCH64_PSTATE_INIT \
+                            (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | \
+                             PSR_F_BIT | PSR_MODE_EL1h)
+
+/* PC Register */
+#define REG_PC              ARM64_CORE_REG(regs.pc)
+
+/* Stack Pointer EL1 */
+#define SP_EL1              ARM64_CORE_REG(sp_el1)
+
+/* Generic Purpose register x0 */
+#define REG_X0              ARM64_CORE_REG(regs.regs[0])
+
 /* Memory Attribute Indirection Register EL1 */
 #define MAIR_EL1            ARM64_SYS_REG(3, 0, 10, 2, 0)
 
@@ -283,5 +303,8 @@ uint64_t ukvm_end_of_kernel_etext;
 void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
                                uint64_t guest_phys_addr, uint64_t size,
                                ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);
+
+void ukvm_aarch64_setup_core(struct ukvm_hv *hv,
+                             ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);
 
 #endif /* UKVM_CPU_AARCH64_H */

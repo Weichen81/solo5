@@ -224,6 +224,15 @@ static int aarch64_get_one_register(int vcpufd, uint64_t id, uint64_t *pdata)
     return ioctl(vcpufd, KVM_GET_ONE_REG, &one_reg);
 }
 
+static uint64_t aarch64_get_counter_frequency(void)
+{
+    uint64_t frq;
+
+    __asm__ __volatile__("mrs %0, cntfrq_el0" : "=r" (frq):: "memory");
+
+    return frq;
+}
+
 static void aarch64_enable_guest_mmu(int vcpufd)
 {
     int ret;
@@ -341,3 +350,53 @@ out_error:
     err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", region.slot);
 }
 
+/*
+ * Initialize registers: instruction pointer for our code, addends,
+ * and PSTATE flags required by ARM64 architecture.
+ * Arguments to the kernel main are passed using the ARM64 calling
+ * convention: x0 ~ x7
+ */
+void ukvm_aarch64_setup_core(struct ukvm_hv *hv,
+                             ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend)
+{
+    int ret;
+    struct ukvm_hvb *hvb = hv->b;
+    struct ukvm_boot_info *bi;
+
+    /* Set default PSTATE flags to SPSR_EL1 */
+    ret = aarch64_set_one_register(hvb->vcpufd, SPSR_EL1,
+                                   AARCH64_PSTATE_INIT);
+    if (ret == -1)
+         err(1, "Initialize spsr[EL1] failed!\n");
+
+    /*
+     * Set Stack Poniter for Guest. ARM64 require stack be 16-bytes
+     * alignment by default.
+     */
+    ret = aarch64_set_one_register(hvb->vcpufd, SP_EL1,
+                                   hv->mem_size - 16);
+    if (ret == -1)
+         err(1, "Initialize sp[EL1] failed!\n");
+
+    bi = (struct ukvm_boot_info *)(hv->mem + AARCH64_BOOT_INFO);
+    bi->mem_size = hv->mem_size;
+    bi->kernel_end = gpa_kend;
+    bi->cmdline = AARCH64_CMDLINE_BASE;
+
+    /*
+     * KVM on aarch64 doesn't support KVM_CAP_GET_TSC_KHZ. But we can use
+     * the cntvct_el0 as RDTSC of x86. So we can read counter frequency
+     * from cntfrq_el0 directly.
+     */
+    bi->cpu.tsc_freq = aarch64_get_counter_frequency();
+
+    /* Passing ukvm_boot_info through x0 */
+    ret = aarch64_set_one_register(hvb->vcpufd, REG_X0, AARCH64_BOOT_INFO);
+    if (ret == -1)
+         err(1, "Set boot info to x0 failed!\n");
+
+    /* Set guest reset PC entry here */
+    ret = aarch64_set_one_register(hvb->vcpufd, REG_PC, gpa_ep);
+    if (ret == -1)
+         err(1, "Set guest reset entry to PC failed!\n");
+}
