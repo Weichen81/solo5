@@ -280,4 +280,8 @@ struct pgprot {
 uint64_t ukvm_end_of_kernel_rodata;
 uint64_t ukvm_end_of_kernel_etext;
 
+void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
+                               uint64_t guest_phys_addr, uint64_t size,
+                               ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);
+
 #endif /* UKVM_CPU_AARCH64_H */

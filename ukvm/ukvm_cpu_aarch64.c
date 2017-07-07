@@ -267,3 +267,77 @@ static void aarch64_enable_guest_mmu(int vcpufd)
     if (ret == -1)
          err(1, "KVM: Setup System Control Register EL1 failed");
 }
+
+/* Map a userspace memroy range as guest physical memroy. */
+void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
+                               uint64_t guest_phys_addr, uint64_t size,
+                               ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend)
+{
+    int ret;
+    struct kvm_userspace_memory_region region;
+
+    /* Register boot_info and unused region before ELF regions */
+    region.slot = 0;
+    region.flags = 0;
+
+    /* We will skip first 4K bytes for MMIO */
+    region.guest_phys_addr = guest_phys_addr + AARCH64_MMIO_SZ;
+
+    /* The elf entry can't be smaller than AARCH64_GUEST_MIN_BASE */
+    if (gpa_ep < AARCH64_GUEST_MIN_BASE)
+         err(1, "Guest elf entry [%lx] is smaller than AARCH64_GUEST_MIN_BASE [%x]\n",
+             gpa_ep, AARCH64_GUEST_MIN_BASE);
+
+    /*
+     * Regardless of the gap between elf entry and AARCH64_GUEST_MIN_BASE,
+     * We configure all memroy before elf entry as the first region.
+     */
+    region.memory_size = gpa_ep - AARCH64_MMIO_SZ;
+
+    /*
+     * To keep the pa and va have the same offset in elf, we should skip
+     * first 4K bytes in va too.
+     */
+    region.userspace_addr = (uint64_t)(vaddr + AARCH64_MMIO_SZ);
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        goto out_error;
+
+
+    /*
+     * Register the memory from elf entry to _erodata as the second region.
+     * This region contains .text and .rodata. It should be configured as
+     * READONLY.
+     */
+    region.slot++;
+    region.flags = KVM_MEM_READONLY;
+    region.guest_phys_addr = guest_phys_addr + gpa_ep;
+    region.memory_size = ukvm_end_of_kernel_rodata - gpa_ep;
+    region.userspace_addr = (uint64_t)(vaddr + gpa_ep);
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        goto out_error;
+
+    /*
+     * Register the memory from _erodata to guest_size as the third region.
+     * This region contains .data, .bss, stack and heap. it should be
+     * configured as WRITEABLE.
+     */
+    region.slot++;
+    region.flags = 0;
+    region.guest_phys_addr = guest_phys_addr + ukvm_end_of_kernel_rodata;
+    region.memory_size = size - ukvm_end_of_kernel_rodata;
+    region.userspace_addr = (uint64_t)(vaddr + ukvm_end_of_kernel_rodata);
+    ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+    if (ret == -1)
+        goto out_error;
+
+    /* Build guest side page tables */
+    aarch64_setup_pagetables(vaddr, size, guest_phys_addr, gpa_ep, gpa_kend);
+
+    return;
+
+out_error:
+    err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) slot=%d failed", region.slot);
+}
+
