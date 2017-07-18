@@ -44,9 +44,8 @@ void ukvm_hv_vcpu_init(struct ukvm_hv *hv, ukvm_gpa_t gpa_ep,
 {
     struct ukvm_hvb *hvb = hv->b;
 
-    /* Setup aarch64 guest memroy */
-    ukvm_aarch64_setup_memory(hvb->vmfd, hv->mem, 0, hv->mem_size,
-                              gpa_ep, gpa_kend);
+    /* Setup aarch64 guest pagetables */
+    ukvm_aarch64_setup_pagetables(hv->mem, hv->mem_size);
 
     /* Setup aarch64 system registers */
     ukvm_aarch64_setup_system(hvb->vmfd, hvb->vcpufd);

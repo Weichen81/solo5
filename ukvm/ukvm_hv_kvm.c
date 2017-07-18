@@ -28,12 +28,21 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <linux/kvm.h>
 
 #include "ukvm.h"
 #include "ukvm_hv_kvm.h"
+
+#if defined(__aarch64__)
+/*
+ * TODO: Needed for AARCH64_MMIO_SZ, remove this after unifying the memory
+ * layout on aarch64 and x86_64.
+ */
+#include "ukvm_cpu_aarch64.h"
+#endif
 
 struct ukvm_hv *ukvm_hv_init(size_t mem_size)
 {
@@ -80,17 +89,28 @@ struct ukvm_hv *ukvm_hv_init(size_t mem_size)
         err(1, "Error allocating guest memory");
     hv->mem_size = mem_size;
 
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    /*
+     * On aarch64 the first page of guest memory is left unmapped to handle
+     * MMIO exits for the hypercall mechanism.
+     */
+    struct kvm_userspace_memory_region region = {
+        .slot = 0,
+        .guest_phys_addr = 0 + AARCH64_MMIO_SZ,
+        .memory_size = hv->mem_size - AARCH64_MMIO_SZ,
+        .userspace_addr = (uint64_t)hv->mem + AARCH64_MMIO_SZ,
+    };
+#else
     struct kvm_userspace_memory_region region = {
         .slot = 0,
         .guest_phys_addr = 0,
         .memory_size = hv->mem_size,
         .userspace_addr = (uint64_t)hv->mem,
     };
+#endif
     ret = ioctl(hvb->vmfd, KVM_SET_USER_MEMORY_REGION, &region);
     if (ret == -1)
         err(1, "KVM: ioctl (SET_USER_MEMORY_REGION) failed");
-#endif
 
     hv->b = hvb;
     return hv;

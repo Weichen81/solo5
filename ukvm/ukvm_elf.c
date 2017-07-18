@@ -41,14 +41,6 @@
 
 #include "ukvm.h"
 
-#if defined(__aarch64__)
-uint64_t ukvm_end_of_kernel_rodata, ukvm_end_of_kernel_etext;
-
-static Elf64_Shdr *ukvm_kernel_elf_section_headers;
-static char *ukvm_kernel_elf_section_names;
-static int ukvm_kernel_elf_section_numbers;
-#endif
-
 static ssize_t pread_in_full(int fd, void *buf, size_t count, off_t offset)
 {
     ssize_t total = 0;
@@ -78,92 +70,6 @@ static ssize_t pread_in_full(int fd, void *buf, size_t count, off_t offset)
 
     return total;
 }
-
-#if defined(__aarch64__)
-static void ukvm_elf_load_section_headers(int fd, Elf64_Ehdr *hdr)
-{
-    Elf64_Shdr *shstrtab;
-    ssize_t numb;
-    size_t buflen;
-
-    buflen = hdr->e_shentsize * hdr->e_shnum;
-    ukvm_kernel_elf_section_headers = malloc(buflen);
-    if (!ukvm_kernel_elf_section_headers)
-        goto out_error;
-
-    numb = pread_in_full(fd, ukvm_kernel_elf_section_headers,
-                         buflen, hdr->e_shoff);
-    if (numb < 0)
-        goto out_error;
-
-    shstrtab = ukvm_kernel_elf_section_headers + hdr->e_shstrndx;
-    ukvm_kernel_elf_section_names = malloc(shstrtab->sh_size);
-    if (!ukvm_kernel_elf_section_names)
-        goto out_error;
-
-    numb = pread_in_full(fd, ukvm_kernel_elf_section_names,
-                         shstrtab->sh_size, shstrtab->sh_offset);
-    if (numb < 0)
-        goto out_error;
-
-    ukvm_kernel_elf_section_numbers = hdr->e_shnum;
-
-    return;
-
-out_error:
-    err(1, "Loading section headers from ELF image failed\n");
-}
-
-static Elf64_Shdr *ukvm_elf_get_section_header_by_name(char *name)
-{
-    Elf64_Shdr *section;
-    int idx;
-
-    for (idx = 0; idx < ukvm_kernel_elf_section_numbers; idx++) {
-        section = ukvm_kernel_elf_section_headers + idx;
-
-        /* Skip section without name */
-        if (section->sh_name == 0)
-            continue;
-
-        if (!strcmp(name, ukvm_kernel_elf_section_names + section->sh_name))
-            return section;
-    }
-
-    return NULL;
-}
-
-static void ukvm_get_info_from_elf(int fd_kernel, Elf64_Ehdr *elf_hdr)
-{
-    Elf64_Shdr *shdr;
-    /*
-     * AArch64 must use separate kvm_userspace_memory_region for readonly
-     * and writeable memory. So we have to get .text, .rodata and .data
-     * from elf image.
-     */
-    ukvm_elf_load_section_headers(fd_kernel, elf_hdr);
-
-    /* The start of .rodata is the end of .text */
-    shdr = ukvm_elf_get_section_header_by_name(".rodata");
-    if (!shdr)
-        err(1, "Could not find .rodata from guest image");
-    ukvm_end_of_kernel_etext = shdr->sh_addr;
-
-    /*
-     * The kernel is a static image, so we don't have .got section. So
-     * the address of .data is the beginning address of writeable data.
-     */
-    shdr = ukvm_elf_get_section_header_by_name(".data");
-    if (!shdr)
-        err(1, "Could not find .data from guest image");
-    ukvm_end_of_kernel_rodata = shdr->sh_addr;
-
-    /* We should not use following data anymore, free them */
-    free(ukvm_kernel_elf_section_headers);
-    free(ukvm_kernel_elf_section_names);
-    ukvm_kernel_elf_section_numbers = 0;
-}
-#endif
 
 /*
  * Load code from elf file into *mem and return the elf entry point
@@ -246,10 +152,6 @@ void ukvm_elf_load(const char *file, uint8_t *mem, size_t mem_size,
     if (numb != buflen)
         goto out_invalid;
 
-#if defined(__aarch64__)
-    ukvm_get_info_from_elf(fd_kernel, &hdr);
-#endif
-
     /*
      * Load all segments with the LOAD directive from the elf file at offset
      * p_offset, and copy that into p_addr in memory. The amount of bytes
@@ -301,13 +203,8 @@ void ukvm_elf_load(const char *file, uint8_t *mem, size_t mem_size,
         prot = PROT_NONE;
         if (phdr[ph_i].p_flags & PF_R)
             prot |= PROT_READ;
-        if (phdr[ph_i].p_flags & PF_W) {
-#if defined(__aarch64__)
-            if (paddr < ukvm_end_of_kernel_rodata)
-                err(1, "WRITE permission could not allowed in readonly area\n");
-#endif
+        if (phdr[ph_i].p_flags & PF_W)
             prot |= PROT_WRITE;
-        }
         if (phdr[ph_i].p_flags & PF_X)
             prot |= PROT_EXEC;
         if (prot & PROT_WRITE && prot & PROT_EXEC)

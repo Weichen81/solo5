@@ -303,14 +303,9 @@ struct pgprot {
 #define PROT_SECT_NORMAL        (PROT_SECT_DEFAULT | PMD_SECT_PXN | PMD_SECT_UXN | PMD_ATTRINDX(MT_NORMAL))
 #define PROT_SECT_NORMAL_EXEC   (PROT_SECT_DEFAULT | PMD_SECT_UXN | PMD_ATTRINDX(MT_NORMAL))
 
-uint64_t ukvm_end_of_kernel_rodata;
-uint64_t ukvm_end_of_kernel_etext;
-
 int ukvm_aarch64_dump_pc(int vcpufd, uint64_t *pdata);
 
-void ukvm_aarch64_setup_memory(int vmfd, void* vaddr,
-                               uint64_t guest_phys_addr, uint64_t size,
-                               ukvm_gpa_t gpa_ep, ukvm_gpa_t gpa_kend);
+void ukvm_aarch64_setup_pagetables(uint8_t *va_addr, uint64_t size);
 
 void ukvm_aarch64_setup_system(int vmfd, int vcpufd);
 
